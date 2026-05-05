@@ -151,14 +151,14 @@ export function DedupDetailPage() {
                         <div className="flex gap-1 mt-1">
                           <Button
                             size="sm"
-                            variant={keepTarget === m.id ? "default" : "outline"}
+                            variant={keepTarget === m.id ? "primary" : "outline"}
                             onClick={() => { setKeepTarget(m.id!); setModal("keep"); }}
                           >
                             <CheckCircle size={11} /> Keep This
                           </Button>
                           <Button
                             size="sm"
-                            variant={mergeTarget === m.id ? "default" : "ghost"}
+                            variant={mergeTarget === m.id ? "primary" : "ghost"}
                             onClick={() => { setMergeTarget(m.id!); setModal("merge"); }}
                           >
                             <GitMerge size={11} /> Merge Into
@@ -239,7 +239,7 @@ export function DedupDetailPage() {
             />
             <div className="flex gap-3 justify-end mt-4">
               <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={() => { flagMutation.mutate(); setModal(null); }} loading={flagMutation.isPending}>
+              <Button variant="danger" onClick={() => { flagMutation.mutate(); setModal(null); }} loading={flagMutation.isPending}>
                 <Flag size={13} /> Flag Group
               </Button>
             </div>

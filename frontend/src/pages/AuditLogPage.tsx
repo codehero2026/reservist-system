@@ -10,14 +10,14 @@ import {
 import { formatDateTime } from "../lib/utils";
 import type { AuditLog } from "../types";
 
-const ACTION_BADGE: Record<string, { label: string; variant: "success"|"accent"|"danger"|"warning"|"default"|"neutral" }> = {
-  CREATE:      { label:"Create",      variant:"success" },
-  UPDATE:      { label:"Update",      variant:"accent"  },
-  DELETE:      { label:"Delete",      variant:"danger"  },
-  IMPORT:      { label:"Import",      variant:"accent"  },
-  EXPORT:      { label:"Export",      variant:"neutral" },
-  DEDUP_MERGE: { label:"Dedup Merge", variant:"warning" },
-  DEDUP_FLAG:  { label:"Dedup Flag",  variant:"warning" },
+const ACTION_BADGE: Record<string, { label: string; variant: "green"|"blue"|"red"|"amber"|"default"|"outline" }> = {
+  CREATE:      { label:"Create",      variant:"green"   },
+  UPDATE:      { label:"Update",      variant:"blue"    },
+  DELETE:      { label:"Delete",      variant:"red"     },
+  IMPORT:      { label:"Import",      variant:"blue"    },
+  EXPORT:      { label:"Export",      variant:"outline" },
+  DEDUP_MERGE: { label:"Dedup Merge", variant:"amber"   },
+  DEDUP_FLAG:  { label:"Dedup Flag",  variant:"amber"   },
   LOGIN:       { label:"Login",       variant:"default" },
   LOGOUT:      { label:"Logout",      variant:"default" },
 };

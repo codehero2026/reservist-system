@@ -77,18 +77,19 @@ export function ReservistProfilePage() {
   const r = reservist.data;
 
   function renderField(f: typeof EDITABLE_FIELDS[number]) {
-    if (f.type === "select") {
+    if ("type" in f && f.type === "select") {
+      const opts = "options" in f ? f.options : [];
       return (
         <FormField label={f.label} key={f.key}>
           <select value={form[f.key] || ""} onChange={e => set(f.key, e.target.value)}
             className="w-full h-9 px-3 bg-[rgb(var(--page-bg))] border border-[rgb(var(--border))] rounded-xl text-xs text-ink focus:outline-none focus:ring-2 focus:ring-blue-400/30">
             <option value="">Select...</option>
-            {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+            {opts.map((o: string) => <option key={o} value={o}>{o}</option>)}
           </select>
         </FormField>
       );
     }
-    if (f.type === "date") {
+    if ("type" in f && f.type === "date") {
       return (
         <FormField label={f.label} key={f.key}>
           <Input type="date" value={form[f.key]?.slice(0, 10) || ""} onChange={e => set(f.key, e.target.value)} />

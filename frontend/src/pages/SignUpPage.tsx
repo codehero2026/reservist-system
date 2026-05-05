@@ -5,7 +5,8 @@ import { Button } from "../components/ui/index";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import axios from "axios";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000/api";
 
 export function SignUpPage() {
   const navigate = useNavigate();

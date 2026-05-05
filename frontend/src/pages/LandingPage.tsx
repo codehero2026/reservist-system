@@ -4,7 +4,8 @@ import { Shield, Users, FileCheck, BarChart3, Lock, ChevronRight, Menu, X, Phone
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import axios from "axios";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000/api";
 
 const FEATURES = [
   { icon: <Users size={24} />, title: "Personnel Registry", desc: "Complete digital records for all reservists with detailed military and personal profiles." },
@@ -47,32 +48,25 @@ export function LandingPage() {
   const siteName = branding.site_name || "H12RCDG Reservist Management System";
   const subName  = branding.sub_name  || "12th Regional Community Defense Group";
 
-  const team = [
+  interface TeamMember { name: string; role: string; photo?: string; contact?: string; accent: string; badge: string; }
+  const teamRaw: (TeamMember | null)[] = [
     branding.dev1_name ? {
-      name: branding.dev1_name,
-      role: "Lead Developer",
-      photo: branding.dev1_photo,
-      contact: branding.dev1_contact,
-      accent: "from-blue-500 to-blue-600",
-      badge: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      name: branding.dev1_name, role: "Lead Developer",
+      photo: branding.dev1_photo, contact: branding.dev1_contact,
+      accent: "from-blue-500 to-blue-600", badge: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     } : null,
     branding.dev2_name ? {
-      name: branding.dev2_name,
-      role: "Assistant Developer",
-      photo: branding.dev2_photo,
-      contact: branding.dev2_contact,
-      accent: "from-purple-500 to-purple-600",
-      badge: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      name: branding.dev2_name, role: "Assistant Developer",
+      photo: branding.dev2_photo, contact: branding.dev2_contact,
+      accent: "from-purple-500 to-purple-600", badge: "bg-purple-500/10 text-purple-500 border-purple-500/20",
     } : null,
     branding.adviser_name ? {
-      name: branding.adviser_name,
-      role: "Project Adviser",
-      photo: branding.adviser_photo,
-      contact: branding.adviser_contact,
-      accent: "from-amber-500 to-orange-500",
-      badge: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      name: branding.adviser_name, role: "Project Adviser",
+      photo: branding.adviser_photo, contact: branding.adviser_contact,
+      accent: "from-amber-500 to-orange-500", badge: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     } : null,
-  ].filter(Boolean) as NonNullable<typeof team[0]>[];
+  ];
+  const team = teamRaw.filter((m): m is TeamMember => m !== null);
 
   return (
     <div className="min-h-screen bg-[rgb(var(--page-bg))]">

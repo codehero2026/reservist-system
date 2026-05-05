@@ -11,8 +11,8 @@ import {
 import { formatDateTime } from "../lib/utils";
 import type { DedupGroup } from "../types";
 
-const STATUS_BADGE: Record<string, "warning"|"success"|"accent"|"danger"> = {
-  PENDING:"warning", RESOLVED:"success", MERGED:"accent", FLAGGED:"danger",
+const STATUS_BADGE: Record<string, "amber"|"green"|"blue"|"red"> = {
+  PENDING:"amber", RESOLVED:"green", MERGED:"blue", FLAGGED:"red",
 };
 
 export function DedupPage() {
@@ -69,23 +69,23 @@ export function DedupPage() {
       <div className="p-5 space-y-4 flex-1 overflow-auto">
         {stats && (
           <div className="grid grid-cols-4 gap-3">
-            <StatsCard label="Pending" value={stats.pending} icon={<AlertTriangle size={14}/>} />
-            <StatsCard label="Resolved" value={stats.resolved} icon={<CheckCircle size={14}/>} />
-            <StatsCard label="Merged" value={stats.merged} icon={<GitMerge size={14}/>} />
-            <StatsCard label="Flagged" value={stats.flagged} icon={<Flag size={14}/>} />
+            <StatsCard title="Pending" value={stats.pending} icon={<AlertTriangle size={14}/>} />
+            <StatsCard title="Resolved" value={stats.resolved} icon={<CheckCircle size={14}/>} />
+            <StatsCard title="Merged" value={stats.merged} icon={<GitMerge size={14}/>} />
+            <StatsCard title="Flagged" value={stats.flagged} icon={<Flag size={14}/>} />
           </div>
         )}
 
         <Card className="flex flex-col overflow-hidden">
           <div className="border-b border-[rgb(var(--border))]">
             <Tabs
-              active={status}
+              value={status}
               onChange={s => { setStatus(s); setPage(1); }}
               tabs={[
-                { id:"PENDING",  label:"Pending",  count:stats?.pending  },
-                { id:"RESOLVED", label:"Resolved", count:stats?.resolved },
-                { id:"MERGED",   label:"Merged",   count:stats?.merged   },
-                { id:"FLAGGED",  label:"Flagged",  count:stats?.flagged  },
+                { value:"PENDING",  label:"Pending",  count:stats?.pending  },
+                { value:"RESOLVED", label:"Resolved", count:stats?.resolved },
+                { value:"MERGED",   label:"Merged",   count:stats?.merged   },
+                { value:"FLAGGED",  label:"Flagged",  count:stats?.flagged  },
               ]}
               className="px-4"
             />
