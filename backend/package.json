@@ -1,0 +1,29 @@
+{
+  "name": "reservist-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev":          "bun run --watch src/index.ts",
+    "start":        "bun run src/index.ts",
+    "db:generate":  "prisma generate",
+    "db:push":      "prisma db push",
+    "db:migrate":   "prisma migrate dev",
+    "db:seed":      "bun run prisma/seed.ts",
+    "db:studio":    "prisma studio",
+    "db:reset":     "prisma db push --force-reset && bun run prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client":     "5.22.0",
+    "hono":               "^4.6.0",
+    "xlsx":               "^0.18.5",
+    "bcryptjs":           "^2.4.3",
+    "jsonwebtoken":       "^9.0.2",
+    "zod":                "^3.23.8",
+    "@hono/zod-validator": "^0.2.2"
+  },
+  "devDependencies": {
+    "prisma":        "5.22.0",
+    "@types/bcryptjs":    "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "bun-types":     "latest"
+  }
+}

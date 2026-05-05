@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-bg:   30  35  50;    /* #1e2332 dark navy */
+    --sidebar-w:    200px;
+    --topbar-h:     52px;
+    --page-bg:      245 246 250;   /* #f5f6fa light grey */
+    --card-bg:      255 255 255;
+    --border:       232 234 240;
+    --text-primary:  30  35  50;
+    --text-secondary:120 130 150;
+    --text-muted:   170 178 195;
+
+    /* Accent palette — one per card type */
+    --c-green:      46  213 115;
+    --c-orange:     255 159  67;
+    --c-yellow:     255 202  40;
+    --c-blue:       52  152 219;
+    --c-purple:     108  92 231;
+    --c-red:        255  71  87;
+    --c-teal:       0   206 201;
+    --c-pink:       253  71 135;
+  }
+
+  .dark {
+    --page-bg:      22  26  40;
+    --card-bg:      30  35  50;
+    --border:       45  52  72;
+    --text-primary: 230 234 244;
+    --text-secondary:150 160 180;
+    --text-muted:   90 100 120;
+  }
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    background: rgb(var(--page-bg));
+    color: rgb(var(--text-primary));
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 99px; }
+}
+
+@layer utilities {
+  /* Slide-in animation */
+  .slide-in {
+    animation: slideIn 200ms ease both;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Card hover lift */
+  .card-lift {
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.10);
+  }
+
+  /* Shimmer skeleton */
+  .skel {
+    background: linear-gradient(90deg,
+      rgb(var(--border)) 0%,
+      rgb(var(--page-bg)) 50%,
+      rgb(var(--border)) 100%);
+    background-size: 200% 100%;
+    animation: skel 1.5s ease infinite;
+    border-radius: 6px;
+  }
+  @keyframes skel {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+}

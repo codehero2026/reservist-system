@@ -1,0 +1,294 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  S1_OFFICER
+  UNIT_CLERK
+  VIEWER
+  RESERVIST
+}
+
+enum ReservistStatus {
+  READY
+  STANDBY
+  RETIRED
+  DISCHARGED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DedupStatus {
+  PENDING
+  RESOLVED
+  MERGED
+  FLAGGED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  IMPORT
+  EXPORT
+  DEDUP_MERGE
+  DEDUP_FLAG
+  LOGIN
+  LOGOUT
+  SETTINGS_UPDATE
+  BACKUP
+  RESTORE
+  BATCH_UPDATE
+  ANNOUNCEMENT
+  REGISTER
+}
+
+// ─── User & Auth ────────────────────────────────────
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  username      String?       @unique
+  passwordHash  String        @map("password_hash")
+  fullName      String        @map("full_name")
+  role          Role          @default(VIEWER)
+  company       String?
+  avatarUrl     String?       @map("avatar_url")
+  isActive      Boolean       @default(true) @map("is_active")
+  isApproved    Boolean       @default(true) @map("is_approved")
+  reservistId   Int?          @unique @map("reservist_id")
+  lastLoginAt   DateTime?     @map("last_login_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  reservist     Reservist?    @relation("UserReservist", fields: [reservistId], references: [id])
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  importBatches ImportBatch[]
+  dedupGroups   DedupGroup[]
+  settingsUpdates SystemSetting[] @relation("SettingsUpdater")
+  announcements Announcement[] @relation("AnnouncementAuthor")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── Reservist ──────────────────────────────────────
+
+model Reservist {
+  id                    Int             @id @default(autoincrement())
+  afpsn                 String
+  rankCode              String          @map("rank_code")
+  lastName              String          @map("last_name")
+  firstName             String          @map("first_name")
+  middleName            String?         @map("middle_name")
+  sex                   String?
+  dateBirth             DateTime?       @map("date_birth") @db.Date
+  placeBirth            String?         @map("place_birth")
+  bloodType             String?         @map("blood_type")
+  religionCode          String?         @map("religion_code")
+  maritalStatus         String?         @map("marital_status")
+  tin                   String?
+
+  homeAddress           String?         @map("home_address")
+  townProvinceCode      String?         @map("town_province_code")
+  telephoneNo           String?         @map("telephone_no")
+  mobileTelNo           String?         @map("mobile_tel_no")
+
+  brSvcCode             String?         @map("br_svc_code")
+  svcAfos               String?         @map("svc_afos")
+  sourceCommissionCode  String?         @map("source_commission_code")
+  dateCommission        DateTime?       @map("date_commission") @db.Date
+  commissionAuthority   String?         @map("commission_authority")
+  initialRank           String?         @map("initial_rank")
+  dateLastPromotion     DateTime?       @map("date_last_promotion") @db.Date
+  promotionAuthority    String?         @map("promotion_authority")
+
+  reservistStatus       ReservistStatus @default(READY) @map("reservist_status")
+  mobilizationCode      String?         @map("mobilization_code")
+  designationCode       String?         @map("designation_code")
+  squadTeamSection      String?         @map("squad_team_section")
+  platoon               String?
+  company               String?
+  bnCode                String?         @map("bn_code")
+
+  presentOccupationCode String?         @map("present_occupation_code")
+  officeAddress         String?         @map("office_address")
+  officeTelNo           String?         @map("office_tel_no")
+
+  sizeBoots             String?         @map("size_boots")
+  sizeCaps              String?         @map("size_caps")
+  sizeBda               String?         @map("size_bda")
+
+  dateOfRecord          DateTime?       @map("date_of_record") @db.Date
+  recordBy              String?         @map("record_by")
+  sourceSheet           String?         @map("source_sheet")
+
+  isDuplicate           Boolean         @default(false) @map("is_duplicate")
+  isDeleted             Boolean         @default(false) @map("is_deleted")
+  importBatchId         Int?            @map("import_batch_id")
+
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+
+  importBatch           ImportBatch?    @relation(fields: [importBatchId], references: [id])
+  dedupGroups           DedupGroup[]    @relation("DedupGroupMembers")
+  userAccount           User?           @relation("UserReservist")
+
+  @@index([afpsn])
+  @@index([lastName, firstName])
+  @@index([company])
+  @@index([reservistStatus])
+  @@index([isDuplicate])
+  @@index([isDeleted])
+  @@map("reservists")
+}
+
+// ─── Import Batch ───────────────────────────────────
+
+model ImportBatch {
+  id           Int          @id @default(autoincrement())
+  filename     String
+  uploadedById String       @map("uploaded_by_id")
+  status       ImportStatus @default(PENDING)
+  totalRows    Int          @default(0) @map("total_rows")
+  successRows  Int          @default(0) @map("success_rows")
+  errorRows    Int          @default(0) @map("error_rows")
+  dupRows      Int          @default(0) @map("dup_rows")
+  errorLog     Json?        @map("error_log")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  completedAt  DateTime?    @map("completed_at")
+
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+  reservists   Reservist[]
+
+  @@map("import_batches")
+}
+
+// ─── Deduplication ──────────────────────────────────
+
+model DedupGroup {
+  id           Int         @id @default(autoincrement())
+  afpsn        String
+  status       DedupStatus @default(PENDING)
+  resolution   String?
+  resolvedById String?     @map("resolved_by_id")
+  resolvedAt   DateTime?   @map("resolved_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  resolvedBy   User?       @relation(fields: [resolvedById], references: [id])
+  members      Reservist[] @relation("DedupGroupMembers")
+  auditLogs    AuditLog[]
+
+  @@index([afpsn])
+  @@index([status])
+  @@map("dedup_groups")
+}
+
+// ─── Audit Log ──────────────────────────────────────
+
+model AuditLog {
+  id           Int         @id @default(autoincrement())
+  userId       String      @map("user_id")
+  action       AuditAction
+  tableName    String?     @map("table_name")
+  recordId     String?     @map("record_id")
+  oldValue     Json?       @map("old_value")
+  newValue     Json?       @map("new_value")
+  notes        String?
+  ipAddress    String?     @map("ip_address")
+  dedupGroupId Int?        @map("dedup_group_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  user         User        @relation(fields: [userId], references: [id])
+  dedupGroup   DedupGroup? @relation(fields: [dedupGroupId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── System Settings ────────────────────────────────
+
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String?
+  valueJson   Json?    @map("value_json")
+  category    String   @default("general")
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  updatedBy   User?    @relation("SettingsUpdater", fields: [updatedById], references: [id])
+
+  @@index([category])
+  @@map("system_settings")
+}
+
+// ─── Announcement / Bulletin ────────────────────────
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String
+  priority    String   @default("normal") // low, normal, high, urgent
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById String   @map("created_by_id")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy   User     @relation("AnnouncementAuthor", fields: [createdById], references: [id])
+
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+// ─── Notifications ─────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
