@@ -25,8 +25,9 @@ export function LoginPage() {
       setAuth(res.data.user as User, res.data.token as string);
       navigate("/dashboard");
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e?.response?.data?.error || "Invalid email or password.");
+      const e = err as { response?: { data?: { error?: unknown } } };
+      const errData = e?.response?.data?.error;
+      setError(typeof errData === "string" ? errData : "Invalid email or password.");
     } finally { setLoading(false); }
   }
 
