@@ -25,8 +25,13 @@ const app = new Hono();
 // ── Global Middleware ──────────────────────────────────
 app.use("*", logger());
 app.use("*", secureHeaders());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:4173",
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(",").map(s => s.trim()) : []),
+];
 app.use("*", cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: (origin) => allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
   credentials: true,
