@@ -1,7 +1,7 @@
 // src/pages/PersonnelFormPage.tsx
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
@@ -67,8 +67,9 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function F({ label, name, register, error, type = "text", placeholder }: {
-  label: string; name: string; register: ReturnType<typeof useForm>["register"];
+  label: string; name: string; register: UseFormRegister<any>;
   error?: string; type?: string; placeholder?: string;
 }) {
   return (
