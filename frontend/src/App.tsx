@@ -61,10 +61,11 @@ export default function App() {
           <Route path="features" element={<Suspense fallback={<LoadingPage />}><FeaturesPage /></Suspense>} />
           <Route path="about"    element={<Suspense fallback={<LoadingPage />}><AboutPage /></Suspense>} />
           <Route path="contact"  element={<Suspense fallback={<LoadingPage />}><ContactPage /></Suspense>} />
-        </Route>
 
-        <Route path="/signup" element={<Suspense fallback={<LoadingPage />}><SignUpPage /></Suspense>} />
-        <Route path="/login" element={<LoginPage />} />
+          {/* Auth modals — render on top of the landing page */}
+          <Route path="/login"  element={<LoginPage />} />
+          <Route path="/signup" element={<Suspense fallback={null}><SignUpPage /></Suspense>} />
+        </Route>
 
         {/* Protected — all inside AppLayout */}
         <Route
