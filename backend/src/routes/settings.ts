@@ -248,15 +248,17 @@ settingsRoutes.post("/backups", requireRole(...ADMIN_S1), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   try {
     const backup = await generateBackupObject(user.userId);
+    // JSON round-trip converts Date objects → ISO strings, required for Prisma Json field
     const json = JSON.stringify(backup);
+    const cleanBackup = JSON.parse(json);
     const filename = `backup_h12rcdg_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.json`;
     const key = BKP + filename;
 
     await prisma.systemSetting.create({
       data: {
         key,
-        value: String(json.length), // store size in bytes for listing
-        valueJson: backup as any,
+        value: String(json.length),
+        valueJson: cleanBackup,
         category: "backup",
         updatedById: user.userId,
       },
@@ -269,6 +271,7 @@ settingsRoutes.post("/backups", requireRole(...ADMIN_S1), async (c) => {
 
     return c.json({ message: "Backup created successfully", filename });
   } catch (e) {
+    console.error("[Backup] Creation failed:", e);
     return c.json({ error: "Backup creation failed: " + String(e) }, 500);
   }
 });

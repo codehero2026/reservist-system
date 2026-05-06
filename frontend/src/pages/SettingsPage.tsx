@@ -377,8 +377,9 @@ function BackupTab({ role }: { role: string }) {
       await settingsApi.createServerBackup();
       toast("Server backup created successfully", "success");
       refetch();
-    } catch {
-      toast("Failed to create server backup", "error");
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || "Failed to create server backup";
+      toast(msg, "error");
     } finally {
       setCreating(false);
     }
