@@ -123,6 +123,7 @@ export interface SystemSettings {
   adviser_name?: string;
   adviser_contact?: string;
   adviser_photo?: string;
+  autofill_admin_login?: string;
   password_min_length?: string;
   password_require_uppercase?: string;
   password_require_numbers?: string;

@@ -1,8 +1,11 @@
 // src/pages/LoginPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Shield, Eye, EyeOff, Lock, Mail, X } from "lucide-react";
 import { authApi } from "../lib/api";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || "/api";
 import { useAuthStore } from "../stores/authStore";
 import { Button } from "../components/ui/index";
 import type { User } from "../types";
@@ -16,8 +19,20 @@ export function LoginPage() {
     const bg = location.state?.background;
     navigate(bg ? bg.pathname + (bg.search ?? "") : "/");
   }
-  const [email, setEmail] = useState("admin@h12rcdg.mil.ph");
-  const [password, setPassword] = useState("Admin@12345");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/public/settings`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.autofill_admin_login !== "false") {
+          setEmail("admin@h12rcdg.mil.ph");
+          setPassword("Admin@12345");
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

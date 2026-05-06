@@ -199,21 +199,23 @@ export function SettingsPage() {
 // ─── Tab A: Website Settings ──────────────────────────────────────────
 function WebsiteTab({ settings, role, onSaved }: { settings: SystemSettings; role: string; onSaved: () => void }) {
   const canEdit = canEditWebsite(role);
-  const [siteName,  setSiteName]  = useState(settings.site_name ?? "H12RCDG");
-  const [subName,   setSubName]   = useState(settings.sub_name  ?? "Reserve System");
-  const [logoFile,  setLogoFile]  = useState<File | null>(null);
-  const [heroBgFile,setHeroBgFile]= useState<File | null>(null);
-  const [saving,    setSaving]    = useState(false);
+  const [siteName,        setSiteName]        = useState(settings.site_name ?? "H12RCDG");
+  const [subName,         setSubName]         = useState(settings.sub_name  ?? "Reserve System");
+  const [autofillAdmin,   setAutofillAdmin]   = useState(settings.autofill_admin_login !== "false");
+  const [logoFile,        setLogoFile]        = useState<File | null>(null);
+  const [heroBgFile,      setHeroBgFile]      = useState<File | null>(null);
+  const [saving,          setSaving]          = useState(false);
 
   useEffect(() => {
     setSiteName(settings.site_name ?? "H12RCDG");
     setSubName(settings.sub_name ?? "Reserve System");
-  }, [settings.site_name, settings.sub_name]);
+    setAutofillAdmin(settings.autofill_admin_login !== "false");
+  }, [settings.site_name, settings.sub_name, settings.autofill_admin_login]);
 
   async function save() {
     setSaving(true);
     try {
-      await settingsApi.save({ site_name: siteName, sub_name: subName });
+      await settingsApi.save({ site_name: siteName, sub_name: subName, autofill_admin_login: autofillAdmin ? "true" : "false" });
 
       if (logoFile) {
         const { data, mimeType } = await fileToBase64(logoFile);
@@ -318,6 +320,24 @@ function WebsiteTab({ settings, role, onSaved }: { settings: SystemSettings; rol
               )}
             </div>
           </div>
+        </div>
+
+        {/* ── Login Settings ──────────────────────────────────── */}
+        <Divider label="LOGIN SETTINGS" />
+
+        <div className="flex items-center justify-between py-1">
+          <div>
+            <p className="text-sm font-semibold text-ink">Auto-fill Admin Credentials</p>
+            <p className="text-xs text-ink3 mt-0.5">Pre-fill the login form with the default admin email and password</p>
+          </div>
+          <button
+            type="button"
+            disabled={!canEdit}
+            onClick={() => canEdit && setAutofillAdmin(v => !v)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${autofillAdmin ? "bg-blue-500" : "bg-[rgb(var(--border))]"}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${autofillAdmin ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
         </div>
 
         {/* Logo preview row */}

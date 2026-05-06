@@ -63,6 +63,7 @@ app.get("/api/public/settings", async (c) => {
           "dev1_name", "dev1_photo", "dev1_contact",
           "dev2_name", "dev2_photo", "dev2_contact",
           "adviser_name", "adviser_photo", "adviser_contact",
+          "autofill_admin_login",
         ],
       },
     },
