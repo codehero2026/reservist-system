@@ -12,6 +12,7 @@ import {
   Table, Th, Td, Tr, Spinner, PageHeader, Pagination,
 } from "../components/ui/index";
 import { toast } from "../components/ui/index";
+import { ProgressModal, useSimulatedProgress } from "../components/ui/ProgressModal";
 import { cn, formatDateTime } from "../lib/utils";
 import type { ImportPreviewResult, ImportPreviewRow } from "../types";
 
@@ -27,6 +28,7 @@ type CommitResult = {
 
 export function ImportPage() {
   const qc = useQueryClient();
+  const prog = useSimulatedProgress(20000); // 20s to reach 85%
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
@@ -50,6 +52,7 @@ export function ImportPage() {
 
   // Step 3 — commit
   const commitMutation = useMutation({
+    onMutate: () => prog.start(),
     mutationFn: () => {
       const rowsToImport = preview!.rows
         .filter((r) => r.status !== "error")
@@ -57,6 +60,7 @@ export function ImportPage() {
       return importApi.commit(rowsToImport, file!.name);
     },
     onSuccess: (res) => {
+      prog.finish();
       setResult(res.data);
       setStep(2);
       qc.invalidateQueries({ queryKey: ["personnel"] });
@@ -66,6 +70,7 @@ export function ImportPage() {
       toast(`Import complete — ${res.data.successRows} records added`, "success");
     },
     onError: (e: unknown) => {
+      prog.error();
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       toast(msg || "Import failed — please try again", "error");
       console.error("[Import commit error]", e);
@@ -409,6 +414,15 @@ export function ImportPage() {
           </div>
         )}
       </div>
+
+      <ProgressModal
+        open={prog.status === "running" || prog.status === "complete" || prog.status === "error"}
+        progress={prog.progress}
+        status={prog.status === "running" ? "running" : prog.status === "complete" ? "complete" : "error"}
+        label="Importing Records…"
+        sublabel={file?.name}
+        onDone={prog.reset}
+      />
     </div>
   );
 }

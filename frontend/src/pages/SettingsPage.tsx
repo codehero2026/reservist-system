@@ -14,6 +14,7 @@ import {
   PageHeader, SectionCard, FormField, Spinner, Divider,
 } from "../components/ui/index";
 import { toast } from "../components/ui/index";
+import { ProgressModal, useSimulatedProgress } from "../components/ui/ProgressModal";
 import { cn } from "../lib/utils";
 import type { SystemSettings, SystemHealth } from "../types";
 
@@ -362,6 +363,7 @@ function BackupTab({ role }: { role: string }) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const resetProg = useSimulatedProgress(4000); // 4s to 85%
 
   // Fetch backups from server
   const { data: backups, isLoading, refetch } = useQuery<{ data: ServerBackup[] }>({
@@ -414,10 +416,12 @@ function BackupTab({ role }: { role: string }) {
 
   async function resetDatabase() {
     setResetting(true);
+    setResetConfirm(false);
+    resetProg.start();
     try {
       await settingsApi.resetDatabase();
+      resetProg.finish();
       toast("Database reset successfully. All records deleted, users and settings retained.", "success");
-      setResetConfirm(false);
       qc.invalidateQueries({ queryKey: ["backups"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["dashboard-activity"] });
@@ -426,6 +430,7 @@ function BackupTab({ role }: { role: string }) {
       qc.invalidateQueries({ queryKey: ["dedup-stats"] });
       qc.invalidateQueries({ queryKey: ["personnel"] });
     } catch {
+      resetProg.error();
       toast("Reset failed", "error");
     } finally {
       setResetting(false);
@@ -598,6 +603,15 @@ function BackupTab({ role }: { role: string }) {
         onCancel={() => setDeleteConfirm(null)}
         loading={loading === deleteConfirm + "_delete"}
         destructive
+      />
+
+      <ProgressModal
+        open={resetProg.status === "running" || resetProg.status === "complete" || resetProg.status === "error"}
+        progress={resetProg.progress}
+        status={resetProg.status === "running" ? "running" : resetProg.status === "complete" ? "complete" : "error"}
+        label="Resetting Database…"
+        sublabel="Deleting all records, keeping users & settings"
+        onDone={resetProg.reset}
       />
     </div>
   );
