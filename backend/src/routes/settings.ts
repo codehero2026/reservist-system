@@ -3,8 +3,6 @@ import { Hono } from "hono";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { createAuditLog } from "../services/audit";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 export const settingsRoutes = new Hono();
 settingsRoutes.use("*", requireAuth);
@@ -13,10 +11,14 @@ settingsRoutes.use("*", requireAuth);
 const ADMIN_ONLY    = ["ADMIN"];
 const ADMIN_S1      = ["ADMIN", "S1_OFFICER"];
 
+// ─── Backup key prefix — separates backups from real settings ────────
+const BKP = "_bkp_";
+
 // ─── GET /api/settings — all settings (all authenticated users) ──────
 settingsRoutes.get("/", async (c) => {
   try {
     const settings = await prisma.systemSetting.findMany({
+      where: { category: { not: "backup" } }, // exclude backup blobs
       orderBy: { category: "asc" },
     });
     const map: Record<string, string | null> = {};
@@ -203,43 +205,17 @@ settingsRoutes.post("/adviser-photo", requireRole(...ADMIN_ONLY), async (c) => {
   return c.json({ message: "Adviser photo saved", url: dataUri });
 });
 
-// ─── Backup Management ────────────────────────────────────────────────
-const BACKUP_DIR = path.resolve(process.cwd(), "backups");
+// ─── Backup Management (DB-backed — Render has ephemeral filesystem) ──
 
-// List all server-side backups
-settingsRoutes.get("/backups", requireRole(...ADMIN_S1), async (c) => {
-  try {
-    const files = await fs.readdir(BACKUP_DIR);
-    const backups = await Promise.all(
-      files
-        .filter(f => f.endsWith(".json"))
-        .map(async (f) => {
-          const stats = await fs.stat(path.join(BACKUP_DIR, f));
-          return {
-            filename: f,
-            size: stats.size,
-            createdAt: stats.mtime.toISOString(),
-          };
-        })
-    );
-    // Sort youngest first
-    backups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return c.json({ data: backups });
-  } catch (e) {
-    return c.json({ error: "Failed to list backups: " + String(e) }, 500);
-  }
-});
-
-// Helper to create a backup object — exported/used inside POST /backups
+// Helper to generate a backup snapshot
 async function generateBackupObject(userId: string) {
   const [reservists, users, importBatches, dedupGroups, settings] = await Promise.all([
     prisma.reservist.findMany({ where: { isDeleted: false } }),
     prisma.user.findMany({ select: { id:true, email:true, fullName:true, role:true, company:true, isActive:true, createdAt:true } }),
     prisma.importBatch.findMany(),
     prisma.dedupGroup.findMany(),
-    prisma.systemSetting.findMany(),
+    prisma.systemSetting.findMany({ where: { category: { not: "backup" } } }),
   ]);
-
   return {
     version: "1.0",
     exportedAt: new Date().toISOString(),
@@ -248,19 +224,47 @@ async function generateBackupObject(userId: string) {
   };
 }
 
-// Create a new backup on the server
+// GET /api/settings/backups — list all stored backups
+settingsRoutes.get("/backups", requireRole(...ADMIN_S1), async (c) => {
+  try {
+    const rows = await prisma.systemSetting.findMany({
+      where: { category: "backup" },
+      orderBy: { createdAt: "desc" },
+      select: { key: true, value: true, createdAt: true },
+    });
+    const backups = rows.map(r => ({
+      filename: r.key.slice(BKP.length),
+      size: parseInt(r.value ?? "0", 10),
+      createdAt: r.createdAt.toISOString(),
+    }));
+    return c.json({ data: backups });
+  } catch (e) {
+    return c.json({ error: "Failed to list backups: " + String(e) }, 500);
+  }
+});
+
+// POST /api/settings/backups — create a new backup stored in DB
 settingsRoutes.post("/backups", requireRole(...ADMIN_S1), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   try {
     const backup = await generateBackupObject(user.userId);
+    const json = JSON.stringify(backup);
     const filename = `backup_h12rcdg_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.json`;
-    const filePath = path.join(BACKUP_DIR, filename);
-    
-    await fs.writeFile(filePath, JSON.stringify(backup, null, 2));
+    const key = BKP + filename;
+
+    await prisma.systemSetting.create({
+      data: {
+        key,
+        value: String(json.length), // store size in bytes for listing
+        valueJson: backup as any,
+        category: "backup",
+        updatedById: user.userId,
+      },
+    });
 
     await createAuditLog({
       userId: user.userId, action: "BACKUP",
-      tableName: "system", notes: `Server-side backup created: ${filename}`,
+      tableName: "system", notes: `Backup created: ${filename}`,
     });
 
     return c.json({ message: "Backup created successfully", filename });
@@ -269,49 +273,47 @@ settingsRoutes.post("/backups", requireRole(...ADMIN_S1), async (c) => {
   }
 });
 
-// Download a backup
+// GET /api/settings/backups/:filename — download a backup
 settingsRoutes.get("/backups/:filename", requireRole(...ADMIN_S1), async (c) => {
   const filename = c.req.param("filename");
   if (!filename) return c.json({ error: "Filename required" }, 400);
-  const filePath = path.join(BACKUP_DIR, filename);
   try {
-    const content = await fs.readFile(filePath, "utf-8");
-    return c.json({ data: JSON.parse(content) });
-  } catch {
-    return c.json({ error: "Backup file not found" }, 404);
+    const row = await prisma.systemSetting.findUnique({ where: { key: BKP + filename } });
+    if (!row) return c.json({ error: "Backup not found" }, 404);
+    return c.json({ data: row.valueJson });
+  } catch (e) {
+    return c.json({ error: "Failed to retrieve backup: " + String(e) }, 500);
   }
 });
 
-// Delete a backup
+// DELETE /api/settings/backups/:filename — remove a backup
 settingsRoutes.delete("/backups/:filename", requireRole(...ADMIN_ONLY), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   const filename = c.req.param("filename");
   if (!filename) return c.json({ error: "Filename required" }, 400);
-  const filePath = path.join(BACKUP_DIR, filename);
   try {
-    await fs.unlink(filePath);
+    await prisma.systemSetting.delete({ where: { key: BKP + filename } });
     await createAuditLog({
       userId: user.userId, action: "DELETE",
       tableName: "system", notes: `Backup deleted: ${filename}`,
     });
     return c.json({ message: "Backup deleted" });
-  } catch {
-    return c.json({ error: "Failed to delete backup" }, 500);
+  } catch (e) {
+    return c.json({ error: "Failed to delete backup: " + String(e) }, 500);
   }
 });
 
-// Restore from an existing server-side backup
+// POST /api/settings/backups/:filename/restore — restore settings from a stored backup
 settingsRoutes.post("/backups/:filename/restore", requireRole(...ADMIN_ONLY), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   const filename = c.req.param("filename");
   if (!filename) return c.json({ error: "Filename required" }, 400);
-  const filePath = path.join(BACKUP_DIR, filename);
   try {
-    const content = await fs.readFile(filePath, "utf-8");
-    const parsed = JSON.parse(content);
-    
-    // Use existing restore logic for settings
-    const settingsToRestore = parsed.tables.settings as { key: string; value: string | null }[];
+    const row = await prisma.systemSetting.findUnique({ where: { key: BKP + filename } });
+    if (!row) return c.json({ error: "Backup not found" }, 404);
+
+    const parsed = row.valueJson as { tables: { settings: { key: string; value: string | null }[] } };
+    const settingsToRestore = parsed.tables.settings.filter(s => !s.key.startsWith(BKP));
     for (const s of settingsToRestore) {
       await prisma.systemSetting.upsert({
         where: { key: s.key },
@@ -322,9 +324,8 @@ settingsRoutes.post("/backups/:filename/restore", requireRole(...ADMIN_ONLY), as
 
     await createAuditLog({
       userId: user.userId, action: "RESTORE",
-      tableName: "system", notes: `Settings restored from server backup: ${filename}`,
+      tableName: "system", notes: `Settings restored from backup: ${filename}`,
     });
-
     return c.json({ message: "Settings restored successfully" });
   } catch (e) {
     return c.json({ error: "Restore failed: " + String(e) }, 500);
