@@ -61,6 +61,8 @@ export function ImportPage() {
       setStep(2);
       qc.invalidateQueries({ queryKey: ["personnel"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      qc.invalidateQueries({ queryKey: ["dedup"] });
+      qc.invalidateQueries({ queryKey: ["dedup-stats"] });
       toast(`Import complete — ${res.data.successRows} records added`, "success");
     },
     onError: (e: unknown) => {
