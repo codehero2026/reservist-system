@@ -395,12 +395,17 @@ settingsRoutes.post("/restore", requireRole(...ADMIN_ONLY), async (c) => {
 settingsRoutes.post("/reset-database", requireRole(...ADMIN_ONLY), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   try {
-    // TRUNCATE with CASCADE handles all FK constraints and junction tables in one shot
-    await prisma.$executeRawUnsafe(`
-      TRUNCATE TABLE
-        "AuditLog", "Notification", "Reservist", "DedupGroup", "ImportBatch"
-      RESTART IDENTITY CASCADE
-    `);
+    // Null out User.reservistId first (User → Reservist FK) to avoid cascade wiping users
+    await prisma.user.updateMany({ data: { reservistId: null } });
+    // Clear M2M junction table between Reservist and DedupGroup
+    await prisma.$executeRawUnsafe(`DELETE FROM "_DedupGroupMembers"`);
+    await prisma.$transaction([
+      prisma.auditLog.deleteMany(),
+      prisma.notification.deleteMany(),
+      prisma.reservist.deleteMany(),
+      prisma.dedupGroup.deleteMany(),
+      prisma.importBatch.deleteMany(),
+    ]);
     await createAuditLog({
       userId: user.userId, action: "DELETE",
       tableName: "system", notes: "Database reset — all records deleted, users and settings retained",
