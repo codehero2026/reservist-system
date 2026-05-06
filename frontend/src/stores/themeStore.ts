@@ -13,14 +13,14 @@ function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", resolveIsDark(theme));
 }
 
-// Restore persisted preference (default = light)
-const persisted = (localStorage.getItem("rms-theme") as Theme | null) ?? "light";
+// Restore persisted preference (default = dark)
+const persisted = (localStorage.getItem("rms-theme") as Theme | null) ?? "dark";
 applyTheme(persisted);
 
 // Keep "system" mode in sync when OS preference changes
 const mq = window.matchMedia("(prefers-color-scheme: dark)");
 mq.addEventListener("change", () => {
-  const stored = (localStorage.getItem("rms-theme") as Theme | null) ?? "light";
+  const stored = (localStorage.getItem("rms-theme") as Theme | null) ?? "dark";
   if (stored === "system") applyTheme("system");
 });
 
