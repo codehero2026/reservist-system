@@ -395,12 +395,13 @@ settingsRoutes.post("/restore", requireRole(...ADMIN_ONLY), async (c) => {
 settingsRoutes.post("/reset-database", requireRole(...ADMIN_ONLY), async (c) => {
   const user = (c as any).get("user") as { userId: string };
   try {
+    // Order matters: delete dependents before parents to avoid FK constraint errors
     await prisma.$transaction([
       prisma.auditLog.deleteMany(),
       prisma.notification.deleteMany(),
-      prisma.dedupGroup.deleteMany(),
+      prisma.reservist.deleteMany(),   // before importBatch (FK: reservist → importBatch)
+      prisma.dedupGroup.deleteMany(),  // after reservist (clears M2M junction)
       prisma.importBatch.deleteMany(),
-      prisma.reservist.deleteMany(),
     ]);
     await createAuditLog({
       userId: user.userId, action: "DELETE",

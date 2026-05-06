@@ -312,11 +312,12 @@ importRoutes.post("/commit", async (c) => {
 
       const duplicateAfpsns = [...new Set(toCreate.filter(r => r.isDuplicate).map(r => r.afpsn))];
       for (const afpsn of duplicateAfpsns) {
-        const existingGroup = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
         const newRecords = await prisma.reservist.findMany({
           where: { afpsn, isDeleted: false },
           select: { id: true },
         });
+        if (newRecords.length < 2) continue; // DB was reset or records no longer exist
+        const existingGroup = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
         if (!existingGroup) {
           await prisma.dedupGroup.create({
             data: { afpsn, members: { connect: newRecords.map(r => ({ id: r.id })) } },
