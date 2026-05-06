@@ -46,42 +46,53 @@ dedupRoutes.get("/stats", async (c) => {
   return c.json({ pending, resolved, merged, flagged, total: pending + resolved + merged + flagged });
 });
 
-// POST /api/dedup/resolve-all — auto-keep first record in every pending group
+// POST /api/dedup/resolve-all — auto-keep oldest record for every duplicate AFPSN
 dedupRoutes.post("/resolve-all", requireRole("ADMIN", "S1_OFFICER"), async (c) => {
   const user = c.get("user") as { userId: string };
-  const pendingGroups = await prisma.dedupGroup.findMany({
-    where: { status: "PENDING" },
-    include: { members: { where: { isDeleted: false }, orderBy: { createdAt: "asc" } } },
+
+  // Find ALL active records grouped by AFPSN that have more than 1 entry
+  const allActive = await prisma.reservist.findMany({
+    where: { isDeleted: false },
+    select: { id: true, afpsn: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (!pendingGroups.length) return c.json({ message: "No pending groups to resolve", resolved: 0 });
-
-  // Collect all IDs to archive and keep in one pass
-  const keepIds: number[] = [];
-  const archiveIds: number[] = [];
-  const groupUpdates: { id: number; keepId: number; archiveCount: number }[] = [];
-
-  for (const group of pendingGroups) {
-    if (group.members.length === 0) continue;
-    const keep = group.members[0];
-    const toArchive = group.members.slice(1);
-    keepIds.push(keep.id);
-    archiveIds.push(...toArchive.map(m => m.id));
-    groupUpdates.push({ id: group.id, keepId: keep.id, archiveCount: toArchive.length });
+  // Group by AFPSN
+  const byAfpsn = new Map<string, { id: number; createdAt: Date }[]>();
+  for (const r of allActive) {
+    if (!byAfpsn.has(r.afpsn)) byAfpsn.set(r.afpsn, []);
+    byAfpsn.get(r.afpsn)!.push({ id: r.id, createdAt: r.createdAt });
   }
 
-  // Bulk updates — 3 queries total regardless of group count
-  await prisma.reservist.updateMany({ where: { id: { in: archiveIds } }, data: { isDeleted: true } });
-  await prisma.reservist.updateMany({ where: { id: { in: keepIds } }, data: { isDuplicate: false } });
-  await prisma.dedupGroup.updateMany({
-    where: { id: { in: groupUpdates.map(g => g.id) } },
+  const keepIds: number[] = [];
+  const archiveIds: number[] = [];
+
+  for (const [, records] of byAfpsn) {
+    if (records.length < 2) continue;
+    keepIds.push(records[0].id);           // oldest is first (sorted by createdAt asc)
+    archiveIds.push(...records.slice(1).map(r => r.id));
+  }
+
+  if (archiveIds.length === 0 && !(await prisma.dedupGroup.count({ where: { status: "PENDING" } }))) {
+    return c.json({ message: "No duplicates found", resolved: 0 });
+  }
+
+  // Bulk archive duplicates and clear isDuplicate flag on kept records
+  if (archiveIds.length > 0) {
+    await prisma.reservist.updateMany({ where: { id: { in: archiveIds } }, data: { isDeleted: true, isDuplicate: false } });
+  }
+  if (keepIds.length > 0) {
+    await prisma.reservist.updateMany({ where: { id: { in: keepIds } }, data: { isDuplicate: false } });
+  }
+
+  // Resolve all pending dedup groups
+  const { count: resolved } = await prisma.dedupGroup.updateMany({
+    where: { status: "PENDING" },
     data: { status: "RESOLVED", resolution: "Auto-resolved (bulk)", resolvedById: user.userId, resolvedAt: new Date() },
   });
 
-  const resolved = groupUpdates.length;
-
-  notifyByRole(["ADMIN", "S1_OFFICER"], "dedup", "Bulk Dedup Resolved", `${resolved} duplicate groups auto-resolved.`, "/dedup");
-  return c.json({ message: `Resolved ${resolved} duplicate groups`, resolved });
+  notifyByRole(["ADMIN", "S1_OFFICER"], "dedup", "Bulk Dedup Resolved", `Archived ${archiveIds.length} duplicate records.`, "/dedup");
+  return c.json({ message: `Archived ${archiveIds.length} duplicate records, resolved ${resolved} groups`, resolved, archived: archiveIds.length });
 });
 
 // GET /api/dedup/:id
