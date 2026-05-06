@@ -291,40 +291,49 @@ importRoutes.post("/commit", async (c) => {
   const { count: successRows } = await prisma.reservist.createMany({ data: toCreate, skipDuplicates: false });
   const dupRows = toCreate.filter(r => r.isDuplicate).length;
   const errorRows = rows.length - successRows;
-  const errorLog: { row: number; error: string }[] = [];
 
-  // Create dedup groups for newly imported duplicates (one query per unique duplicate AFPSN)
-  const duplicateAfpsns = [...new Set(toCreate.filter(r => r.isDuplicate).map(r => r.afpsn))];
-  for (const afpsn of duplicateAfpsns) {
-    const existingGroup = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
-    const newRecords = await prisma.reservist.findMany({
-      where: { afpsn, isDeleted: false },
-      select: { id: true },
-    });
-    if (!existingGroup) {
-      await prisma.dedupGroup.create({
-        data: { afpsn, members: { connect: newRecords.map(r => ({ id: r.id })) } },
+  // Respond immediately — don't block on dedup group creation or audit logging
+  // so large imports don't timeout on Render's 30s limit
+  const response = c.json({ batchId: batch.id, successRows, errorRows, dupRows, errorLog: [] });
+
+  // Fire-and-forget: update batch status + create dedup groups in background
+  (async () => {
+    try {
+      await prisma.importBatch.update({
+        where: { id: batch.id },
+        data: { status: "COMPLETED", successRows, errorRows, dupRows, errorLog: [], completedAt: new Date() },
       });
-    } else {
-      await prisma.dedupGroup.update({
-        where: { id: existingGroup.id },
-        data: { members: { connect: newRecords.map(r => ({ id: r.id })) } },
+
+      const duplicateAfpsns = [...new Set(toCreate.filter(r => r.isDuplicate).map(r => r.afpsn))];
+      for (const afpsn of duplicateAfpsns) {
+        const existingGroup = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
+        const newRecords = await prisma.reservist.findMany({
+          where: { afpsn, isDeleted: false },
+          select: { id: true },
+        });
+        if (!existingGroup) {
+          await prisma.dedupGroup.create({
+            data: { afpsn, members: { connect: newRecords.map(r => ({ id: r.id })) } },
+          });
+        } else {
+          await prisma.dedupGroup.update({
+            where: { id: existingGroup.id },
+            data: { members: { connect: newRecords.map(r => ({ id: r.id })) } },
+          });
+        }
+      }
+
+      await createAuditLog({
+        userId: user.userId, action: "IMPORT", tableName: "reservists", recordId: batch.id,
+        notes: `Imported ${successRows} records, ${dupRows} duplicates, ${errorRows} errors`,
       });
+      notifyByRole(["ADMIN", "S1_OFFICER"], "import", "Import Completed", `${successRows} records imported, ${dupRows} duplicates.`, "/import");
+    } catch (e) {
+      console.error("[Import] Background post-processing error:", e);
     }
-  }
+  })();
 
-  await prisma.importBatch.update({
-    where: { id: batch.id },
-    data: { status: "COMPLETED", successRows, errorRows, dupRows, errorLog: errorLog as object[], completedAt: new Date() },
-  });
-
-  await createAuditLog({
-    userId: user.userId, action: "IMPORT", tableName: "reservists", recordId: batch.id,
-    notes: `Imported ${successRows} records, ${dupRows} duplicates, ${errorRows} errors`,
-  });
-
-  notifyByRole(["ADMIN", "S1_OFFICER"], "import", "Import Completed", `${successRows} records imported, ${dupRows} duplicates, ${errorRows} errors.`, "/import");
-  return c.json({ batchId: batch.id, successRows, errorRows, dupRows, errorLog });
+  return response;
 });
 
 // GET /api/import/batches
