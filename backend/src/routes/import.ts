@@ -138,13 +138,24 @@ importRoutes.post("/preview", async (c) => {
   if (!file.name.match(/\.(xlsx|xls)$/i)) return c.json({ error: "File must be .xlsx or .xls" }, 400);
 
   let rawRows: Record<string, unknown>[];
-  let sheetName: string;
+  let sheetNames: string[];
+  let detectedHeaders: string[];
   try {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-    sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+    sheetNames = workbook.SheetNames;
+
+    // Read ALL sheets and combine rows, tagging each row with its source sheet
+    rawRows = [];
+    for (const name of sheetNames) {
+      const sheet = workbook.Sheets[name];
+      const sheetRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+      for (const row of sheetRows) {
+        rawRows.push({ ...row, SourceSheet: row["SourceSheet"] ?? name });
+      }
+    }
+
+    detectedHeaders = Object.keys(rawRows[0] || {});
   } catch (e) {
     console.error("[Import Preview] XLSX parse error:", e);
     return c.json({ error: "Could not parse the Excel file. Make sure it is a valid .xlsx or .xls file." }, 400);
@@ -152,10 +163,8 @@ importRoutes.post("/preview", async (c) => {
 
   if (rawRows.length === 0) return c.json({ error: "File contains no data rows" }, 400);
 
-  // Log detected headers for debugging
-  const detectedHeaders = Object.keys(rawRows[0] || {});
   const mappedHeaders = detectedHeaders.filter(h => COLUMN_MAP[h] || COLUMN_MAP[h.trim().toUpperCase()]);
-  console.log(`[Import] Detected ${detectedHeaders.length} columns, mapped ${mappedHeaders.length}`);
+  console.log(`[Import] ${sheetNames.length} sheet(s), ${rawRows.length} total rows, ${mappedHeaders.length} mapped columns`);
 
   const mappedRows = rawRows.map((rawRow, index) => ({
     ...mapRow(rawRow),
@@ -198,7 +207,7 @@ importRoutes.post("/preview", async (c) => {
       warnings: results.filter((r) => r.status === "warning").length,
       errors: results.filter((r) => r.status === "error").length,
     },
-    sheetName,
+    sheetNames,
     detectedHeaders,
     mappedHeaders,
   });
