@@ -1,11 +1,12 @@
 // src/App.tsx
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./stores/authStore";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PublicLayout } from "./components/layout/PublicLayout";
 import { LoadingPage, Toaster } from "./components/ui/index";
 import { LoginPage } from "./pages/LoginPage";
+import { systemApi } from "./lib/api";
 
 // Public pages
 const HomePage           = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
@@ -47,6 +48,9 @@ function Page({ el: El }: { el: React.ComponentType }) {
 
 export default function App() {
   const { isAuthenticated } = useAuthStore();
+
+  // Ping backend on load so Render free tier wakes up before the user needs it
+  useEffect(() => { systemApi.health().catch(() => {}); }, []);
 
   return (
     <>

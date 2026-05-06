@@ -48,13 +48,14 @@ export function AppLayout() {
   const { data: settingsRes } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => (await settingsApi.get()).data,
+    staleTime: 5 * 60 * 1000,
   });
   const settings: SystemSettings = settingsRes?.data ?? {};
 
-  async function logout() {
-    try { await authApi.logout(); } catch {}
+  function logout() {
     clearAuth();
-    navigate("/login");
+    navigate("/");
+    authApi.logout().catch(() => {});
   }
 
   const Sidebar = (
