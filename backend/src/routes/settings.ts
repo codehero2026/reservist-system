@@ -207,20 +207,25 @@ settingsRoutes.post("/adviser-photo", requireRole(...ADMIN_ONLY), async (c) => {
 
 // ─── Backup Management (DB-backed — Render has ephemeral filesystem) ──
 
-// Helper to generate a backup snapshot
+// Helper to generate a backup snapshot.
+// Only includes settings + user accounts — the restore only uses these,
+// and including 4k+ reservist rows causes Render's 30s timeout.
 async function generateBackupObject(userId: string) {
-  const [reservists, users, importBatches, dedupGroups, settings] = await Promise.all([
-    prisma.reservist.findMany({ where: { isDeleted: false } }),
-    prisma.user.findMany({ select: { id:true, email:true, fullName:true, role:true, company:true, isActive:true, createdAt:true } }),
-    prisma.importBatch.findMany(),
-    prisma.dedupGroup.findMany(),
+  const [users, settings, reservistCount, importCount] = await Promise.all([
+    prisma.user.findMany({
+      select: { id:true, email:true, username:true, fullName:true, role:true,
+                company:true, isActive:true, isApproved:true, createdAt:true },
+    }),
     prisma.systemSetting.findMany({ where: { category: { not: "backup" } } }),
+    prisma.reservist.count({ where: { isDeleted: false } }),
+    prisma.importBatch.count(),
   ]);
   return {
-    version: "1.0",
+    version: "1.1",
     exportedAt: new Date().toISOString(),
     exportedBy: userId,
-    tables: { reservists, users, importBatches, dedupGroups, settings },
+    meta: { reservistCount, importCount },
+    tables: { users, settings },
   };
 }
 
