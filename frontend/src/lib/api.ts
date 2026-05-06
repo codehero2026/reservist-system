@@ -21,17 +21,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only auto-logout on 401 from auth-specific endpoints
-    // Don't redirect if the request was to /settings or other pages
-    // (would cause jarring logout when token is slightly stale)
     if (error.response?.status === 401) {
-      const url = error.config?.url ?? "";
-      const isAuthCheck = url.includes("/auth/me") || url.includes("/auth/login");
-      if (isAuthCheck) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-      }
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
