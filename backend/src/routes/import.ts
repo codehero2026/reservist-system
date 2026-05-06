@@ -206,83 +206,69 @@ importRoutes.post("/commit", async (c) => {
     },
   });
 
-  let successRows = 0, errorRows = 0, dupRows = 0;
+  // Single query to find all existing AFPSNs
+  const allAfpsns = rows.map((r: Record<string,unknown>) => String(r.afpsn || "")).filter(Boolean);
+  const existingAfpsns = new Set(
+    (await prisma.reservist.findMany({
+      where: { afpsn: { in: allAfpsns }, isDeleted: false },
+      select: { afpsn: true },
+    })).map(r => r.afpsn)
+  );
+
+  // Build all records
+  const toCreate = rows.map((row: Record<string,unknown>) => {
+    const afpsn = String(row.afpsn || "");
+    return {
+      afpsn,
+      rankCode: String(row.rankCode || ""),
+      lastName: String(row.lastName || ""),
+      firstName: String(row.firstName || ""),
+      middleName: row.middleName ? String(row.middleName) : null,
+      sex: (row.sex as "M" | "F") || null,
+      dateBirth: row.dateBirth ? new Date(row.dateBirth as string) : null,
+      placeBirth: row.placeBirth ? String(row.placeBirth) : null,
+      bloodType: row.bloodType ? String(row.bloodType) : null,
+      religionCode: row.religionCode ? String(row.religionCode) : null,
+      maritalStatus: row.maritalStatus as "SINGLE" | "MARRIED" | "WIDOWED" | "SEPARATED" | null || null,
+      tin: row.tin ? String(row.tin) : null,
+      homeAddress: row.homeAddress ? String(row.homeAddress) : null,
+      townProvinceCode: row.townProvinceCode ? String(row.townProvinceCode) : null,
+      telephoneNo: row.telephoneNo ? String(row.telephoneNo) : null,
+      mobileTelNo: row.mobileTelNo ? String(row.mobileTelNo) : null,
+      brSvcCode: row.brSvcCode ? String(row.brSvcCode) : null,
+      svcAfos: row.svcAfos ? String(row.svcAfos) : null,
+      sourceCommissionCode: row.sourceCommissionCode ? String(row.sourceCommissionCode) : null,
+      dateCommission: row.dateCommission ? new Date(row.dateCommission as string) : null,
+      commissionAuthority: row.commissionAuthority ? String(row.commissionAuthority) : null,
+      initialRank: row.initialRank ? String(row.initialRank) : null,
+      dateLastPromotion: row.dateLastPromotion ? new Date(row.dateLastPromotion as string) : null,
+      promotionAuthority: row.promotionAuthority ? String(row.promotionAuthority) : null,
+      reservistStatus: (row.reservistStatus as "READY" | "STANDBY" | "RETIRED" | "DISCHARGED") || "READY",
+      mobilizationCode: row.mobilizationCode ? String(row.mobilizationCode) : null,
+      designationCode: row.designationCode ? String(row.designationCode) : null,
+      squadTeamSection: row.squadTeamSection ? String(row.squadTeamSection) : null,
+      platoon: row.platoon ? String(row.platoon) : null,
+      company: row.company ? String(row.company) : null,
+      bnCode: row.bnCode ? String(row.bnCode) : null,
+      presentOccupationCode: row.presentOccupationCode ? String(row.presentOccupationCode) : null,
+      officeAddress: row.officeAddress ? String(row.officeAddress) : null,
+      officeTelNo: row.officeTelNo ? String(row.officeTelNo) : null,
+      sizeBoots: row.sizeBoots ? String(row.sizeBoots) : null,
+      sizeCaps: row.sizeCaps ? String(row.sizeCaps) : null,
+      sizeBda: row.sizeBda ? String(row.sizeBda) : null,
+      dateOfRecord: row.dateOfRecord ? new Date(row.dateOfRecord as string) : null,
+      recordBy: row.recordBy ? String(row.recordBy) : null,
+      sourceSheet: row.sourceSheet ? String(row.sourceSheet) : null,
+      isDuplicate: existingAfpsns.has(afpsn),
+      importBatchId: batch.id,
+    };
+  });
+
+  // Bulk insert all rows at once
+  const { count: successRows } = await prisma.reservist.createMany({ data: toCreate, skipDuplicates: false });
+  const dupRows = toCreate.filter(r => r.isDuplicate).length;
+  const errorRows = rows.length - successRows;
   const errorLog: { row: number; error: string }[] = [];
-
-  for (const row of rows) {
-    try {
-      const afpsn = String(row.afpsn || "");
-      const existingCount = await prisma.reservist.count({ where: { afpsn, isDeleted: false } });
-      const isDuplicate = existingCount > 0;
-
-      const record = await prisma.reservist.create({
-        data: {
-          afpsn,
-          rankCode: String(row.rankCode || ""),
-          lastName: String(row.lastName || ""),
-          firstName: String(row.firstName || ""),
-          middleName: row.middleName ? String(row.middleName) : null,
-          sex: (row.sex as "M" | "F") || null,
-          dateBirth: row.dateBirth ? new Date(row.dateBirth as string) : null,
-          placeBirth: row.placeBirth ? String(row.placeBirth) : null,
-          bloodType: row.bloodType ? String(row.bloodType) : null,
-          religionCode: row.religionCode ? String(row.religionCode) : null,
-          maritalStatus: row.maritalStatus as "SINGLE" | "MARRIED" | "WIDOWED" | "SEPARATED" | null || null,
-          tin: row.tin ? String(row.tin) : null,
-          homeAddress: row.homeAddress ? String(row.homeAddress) : null,
-          townProvinceCode: row.townProvinceCode ? String(row.townProvinceCode) : null,
-          telephoneNo: row.telephoneNo ? String(row.telephoneNo) : null,
-          mobileTelNo: row.mobileTelNo ? String(row.mobileTelNo) : null,
-          brSvcCode: row.brSvcCode ? String(row.brSvcCode) : null,
-          svcAfos: row.svcAfos ? String(row.svcAfos) : null,
-          sourceCommissionCode: row.sourceCommissionCode ? String(row.sourceCommissionCode) : null,
-          dateCommission: row.dateCommission ? new Date(row.dateCommission as string) : null,
-          commissionAuthority: row.commissionAuthority ? String(row.commissionAuthority) : null,
-          initialRank: row.initialRank ? String(row.initialRank) : null,
-          dateLastPromotion: row.dateLastPromotion ? new Date(row.dateLastPromotion as string) : null,
-          promotionAuthority: row.promotionAuthority ? String(row.promotionAuthority) : null,
-          reservistStatus: (row.reservistStatus as "READY" | "STANDBY" | "RETIRED" | "DISCHARGED") || "READY",
-          mobilizationCode: row.mobilizationCode ? String(row.mobilizationCode) : null,
-          designationCode: row.designationCode ? String(row.designationCode) : null,
-          squadTeamSection: row.squadTeamSection ? String(row.squadTeamSection) : null,
-          platoon: row.platoon ? String(row.platoon) : null,
-          company: row.company ? String(row.company) : null,
-          bnCode: row.bnCode ? String(row.bnCode) : null,
-          presentOccupationCode: row.presentOccupationCode ? String(row.presentOccupationCode) : null,
-          officeAddress: row.officeAddress ? String(row.officeAddress) : null,
-          officeTelNo: row.officeTelNo ? String(row.officeTelNo) : null,
-          sizeBoots: row.sizeBoots ? String(row.sizeBoots) : null,
-          sizeCaps: row.sizeCaps ? String(row.sizeCaps) : null,
-          sizeBda: row.sizeBda ? String(row.sizeBda) : null,
-          dateOfRecord: row.dateOfRecord ? new Date(row.dateOfRecord as string) : null,
-          recordBy: row.recordBy ? String(row.recordBy) : null,
-          sourceSheet: row.sourceSheet ? String(row.sourceSheet) : null,
-          isDuplicate,
-          importBatchId: batch.id,
-        },
-      });
-
-      if (isDuplicate) {
-        dupRows++;
-        let group = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
-        if (!group) {
-          group = await prisma.dedupGroup.create({ data: { afpsn } });
-          await prisma.reservist.updateMany({
-            where: { afpsn, isDeleted: false, id: { not: record.id } },
-            data: { isDuplicate: true },
-          });
-        }
-        await prisma.dedupGroup.update({
-          where: { id: group.id },
-          data: { members: { connect: { id: record.id } } },
-        });
-      }
-      successRows++;
-    } catch (e) {
-      errorRows++;
-      errorLog.push({ row: row._rowIndex as number, error: String(e) });
-    }
-  }
 
   await prisma.importBatch.update({
     where: { id: batch.id },
