@@ -59,6 +59,7 @@ export const importApi = {
     form.append("file", file);
     return api.post("/import/preview", form, {
       headers: { "Content-Type": undefined },
+      timeout: 120000,
     });
   },
   commit: (rows: unknown[], filename: string) =>
