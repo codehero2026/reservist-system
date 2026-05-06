@@ -287,8 +287,14 @@ importRoutes.post("/commit", async (c) => {
     };
   });
 
-  // Bulk insert all rows at once
-  const { count: successRows } = await prisma.reservist.createMany({ data: toCreate, skipDuplicates: false });
+  // Insert in chunks of 500 to stay within Neon's query size limits
+  const CHUNK_SIZE = 500;
+  let successRows = 0;
+  for (let i = 0; i < toCreate.length; i += CHUNK_SIZE) {
+    const chunk = toCreate.slice(i, i + CHUNK_SIZE);
+    const { count } = await prisma.reservist.createMany({ data: chunk, skipDuplicates: false });
+    successRows += count;
+  }
   const dupRows = toCreate.filter(r => r.isDuplicate).length;
   const errorRows = rows.length - successRows;
 
