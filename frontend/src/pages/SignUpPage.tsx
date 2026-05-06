@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Shield, User, Mail, Lock, Eye, EyeOff, Tag, X, UserPlus } from "lucide-react";
 import { Button } from "../components/ui/index";
 import axios from "axios";
@@ -9,6 +9,12 @@ const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000/api
 
 export function SignUpPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  function handleClose() {
+    const bg = location.state?.background;
+    navigate(bg ? bg.pathname + (bg.search ?? "") : "/");
+  }
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +51,7 @@ export function SignUpPage() {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => navigate("/")} />
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
@@ -53,7 +59,7 @@ export function SignUpPage() {
 
           {/* Close button */}
           <button
-            onClick={() => navigate("/")}
+            onClick={handleClose}
             className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-[rgb(var(--card-bg))] border border-white/10 flex items-center justify-center text-ink3 hover:text-ink transition-colors shadow-lg"
           >
             <X size={14} />
@@ -81,7 +87,7 @@ export function SignUpPage() {
                   : "Your account is pending approval by the system administrator."}
               </p>
               <div className="flex gap-3 justify-center">
-                <button onClick={() => navigate("/")} className="h-9 px-4 rounded-xl border border-[rgb(var(--border))] text-ink text-sm font-semibold hover:bg-[rgb(var(--subtle))] transition-colors">
+                <button onClick={handleClose} className="h-9 px-4 rounded-xl border border-[rgb(var(--border))] text-ink text-sm font-semibold hover:bg-[rgb(var(--subtle))] transition-colors">
                   Back to Home
                 </button>
                 <button onClick={() => navigate("/login")} className="h-9 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-bold">
@@ -209,7 +215,7 @@ export function SignUpPage() {
 
                   <p className="text-center text-xs text-ink3">
                     Already have an account?{" "}
-                    <Link to="/login" className="text-blue-500 font-semibold hover:underline">Sign in</Link>
+                    <Link to="/login" state={{ background: location.state?.background ?? location }} className="text-blue-500 font-semibold hover:underline">Sign in</Link>
                   </p>
                 </form>
               </div>

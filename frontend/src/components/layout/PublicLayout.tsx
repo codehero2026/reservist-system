@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { Shield, Menu, X } from "lucide-react";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import axios from "axios";
@@ -32,6 +32,7 @@ const NAV_LINKS = [
 
 export function PublicLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [branding, setBranding] = useState<PublicSettings>({});
 
@@ -86,13 +87,13 @@ export function PublicLayout() {
             <div className="hidden md:flex items-center gap-3">
               <ThemeToggle />
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login", { state: { background: location } })}
                 className="text-xs font-semibold text-ink2 hover:text-ink transition-colors px-3 py-1.5"
               >
                 Login
               </button>
               <button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/signup", { state: { background: location } })}
                 className="h-8 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold hover:opacity-90 transition-opacity"
               >
                 Sign Up
@@ -127,8 +128,8 @@ export function PublicLayout() {
               </NavLink>
             ))}
             <div className="flex gap-2 pt-2 border-t border-[rgb(var(--border))] mt-2">
-              <button onClick={() => { navigate("/login"); setMobileMenu(false); }} className="flex-1 h-9 rounded-xl border border-[rgb(var(--border))] text-xs font-bold text-ink2">Login</button>
-              <button onClick={() => { navigate("/signup"); setMobileMenu(false); }} className="flex-1 h-9 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold">Sign Up</button>
+              <button onClick={() => { navigate("/login", { state: { background: location } }); setMobileMenu(false); }} className="flex-1 h-9 rounded-xl border border-[rgb(var(--border))] text-xs font-bold text-ink2">Login</button>
+              <button onClick={() => { navigate("/signup", { state: { background: location } }); setMobileMenu(false); }} className="flex-1 h-9 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold">Sign Up</button>
             </div>
           </div>
         )}
@@ -152,8 +153,8 @@ export function PublicLayout() {
           </div>
           <p className="text-2xs text-ink3">RESTRICTED SYSTEM &middot; AUTHORIZED PERSONNEL ONLY &middot; Philippine Army</p>
           <div className="flex gap-4">
-            <Link to="/login"   className="text-2xs text-ink3 hover:text-ink2">Admin Portal</Link>
-            <Link to="/signup"  className="text-2xs text-ink3 hover:text-ink2">Register</Link>
+            <Link to="/login"  state={{ background: location }} className="text-2xs text-ink3 hover:text-ink2">Admin Portal</Link>
+            <Link to="/signup" state={{ background: location }} className="text-2xs text-ink3 hover:text-ink2">Register</Link>
             <Link to="/contact" className="text-2xs text-ink3 hover:text-ink2">Contact Us</Link>
           </div>
         </div>

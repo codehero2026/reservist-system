@@ -1,12 +1,14 @@
 // src/App.tsx
 import { lazy, Suspense, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "./stores/authStore";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PublicLayout } from "./components/layout/PublicLayout";
 import { LoadingPage, Toaster } from "./components/ui/index";
 import { LoginPage } from "./pages/LoginPage";
-import { systemApi } from "./lib/api";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || "/api";
 
 // Public pages
 const HomePage           = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
@@ -48,13 +50,22 @@ function Page({ el: El }: { el: React.ComponentType }) {
 
 export default function App() {
   const { isAuthenticated } = useAuthStore();
+  const location = useLocation();
+  const background = location.state?.background;
+  const isModalPath = location.pathname === "/login" || location.pathname === "/signup";
 
-  // Ping backend on load so Render free tier wakes up before the user needs it
-  useEffect(() => { systemApi.health().catch(() => {}); }, []);
+  // Wake up Render free-tier using public endpoint (no auth, no 401 risk)
+  useEffect(() => {
+    fetch(`${BASE_URL}/public/settings`).catch(() => {});
+  }, []);
+
+  // When on a modal path without background state (e.g. direct URL nav to /login),
+  // fake "/" as background so the homepage renders behind the modal.
+  const routerLocation = background ?? (isModalPath ? { ...location, pathname: "/" } : location);
 
   return (
     <>
-      <Routes>
+      <Routes location={routerLocation}>
         {/* Public site — shared nav/footer layout */}
         <Route element={<PublicLayout />}>
           <Route index element={
@@ -65,10 +76,6 @@ export default function App() {
           <Route path="features" element={<Suspense fallback={<LoadingPage />}><FeaturesPage /></Suspense>} />
           <Route path="about"    element={<Suspense fallback={<LoadingPage />}><AboutPage /></Suspense>} />
           <Route path="contact"  element={<Suspense fallback={<LoadingPage />}><ContactPage /></Suspense>} />
-
-          {/* Auth modals — render on top of the landing page */}
-          <Route path="/login"  element={<LoginPage />} />
-          <Route path="/signup" element={<Suspense fallback={null}><SignUpPage /></Suspense>} />
         </Route>
 
         {/* Protected — all inside AppLayout */}
@@ -100,6 +107,14 @@ export default function App() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* Modal overlays — render on top of whichever background page is active */}
+      {(background || isModalPath) && (
+        <Routes>
+          <Route path="/login"  element={<LoginPage />} />
+          <Route path="/signup" element={<Suspense fallback={null}><SignUpPage /></Suspense>} />
+        </Routes>
+      )}
 
       <Toaster />
     </>

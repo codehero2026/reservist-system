@@ -1,6 +1,6 @@
 // src/pages/LoginPage.tsx
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Shield, Eye, EyeOff, Lock, Mail, X } from "lucide-react";
 import { authApi } from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
@@ -9,7 +9,13 @@ import type { User } from "../types";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setAuth } = useAuthStore();
+
+  function handleClose() {
+    const bg = location.state?.background;
+    navigate(bg ? bg.pathname + (bg.search ?? "") : "/");
+  }
   const [email, setEmail] = useState("admin@h12rcdg.mil.ph");
   const [password, setPassword] = useState("Admin@12345");
   const [showPass, setShowPass] = useState(false);
@@ -35,7 +41,7 @@ export function LoginPage() {
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        onClick={() => navigate("/")}
+        onClick={handleClose}
       />
 
       {/* Modal */}
@@ -44,7 +50,7 @@ export function LoginPage() {
 
           {/* Close button */}
           <button
-            onClick={() => navigate("/")}
+            onClick={handleClose}
             className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-[rgb(var(--card-bg))] border border-white/10 flex items-center justify-center text-ink3 hover:text-ink transition-colors shadow-lg"
           >
             <X size={14} />
@@ -103,7 +109,7 @@ export function LoginPage() {
 
             <p className="text-center text-xs text-ink3 mt-5">
               Reservist?{" "}
-              <Link to="/signup" className="text-blue-400 font-semibold hover:underline">Create an account</Link>
+              <Link to="/signup" state={{ background: location.state?.background ?? location }} className="text-blue-400 font-semibold hover:underline">Create an account</Link>
             </p>
           </div>
 
