@@ -25,7 +25,7 @@ export function DedupPage() {
   const { data: stats } = useQuery({ queryKey:["dedup-stats"], queryFn: async()=>(await dedupApi.stats()).data, staleTime: 30_000, refetchInterval:60_000 });
   const { data, isLoading } = useQuery<{ data: DedupGroup[]; meta: any }>({
     queryKey: ["dedup", page, status],
-    queryFn: async () => (await dedupApi.list({ page, limit: 25, status })).data,
+    queryFn: async () => (await dedupApi.list({ page, limit: 500, status })).data,
     staleTime: 30_000,
     placeholderData: p => p,
   });
