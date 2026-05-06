@@ -422,6 +422,9 @@ function BackupTab({ role }: { role: string }) {
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["dashboard-activity"] });
       qc.invalidateQueries({ queryKey: ["dashboard-announcements"] });
+      qc.invalidateQueries({ queryKey: ["dedup"] });
+      qc.invalidateQueries({ queryKey: ["dedup-stats"] });
+      qc.invalidateQueries({ queryKey: ["personnel"] });
     } catch {
       toast("Reset failed", "error");
     } finally {
