@@ -125,16 +125,30 @@ function validateRow(row: Record<string, unknown>): string[] {
 
 // POST /api/import/preview
 importRoutes.post("/preview", async (c) => {
-  const formData = await c.req.formData();
+  let formData: FormData;
+  try {
+    formData = await c.req.formData();
+  } catch (e) {
+    console.error("[Import Preview] Failed to parse form data:", e);
+    return c.json({ error: "Failed to read uploaded file. Please try again." }, 400);
+  }
+
   const file = formData.get("file") as File | null;
   if (!file) return c.json({ error: "No file uploaded" }, 400);
   if (!file.name.match(/\.(xlsx|xls)$/i)) return c.json({ error: "File must be .xlsx or .xls" }, 400);
 
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+  let rawRows: Record<string, unknown>[];
+  let sheetName: string;
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+    sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+  } catch (e) {
+    console.error("[Import Preview] XLSX parse error:", e);
+    return c.json({ error: "Could not parse the Excel file. Make sure it is a valid .xlsx or .xls file." }, 400);
+  }
 
   if (rawRows.length === 0) return c.json({ error: "File contains no data rows" }, 400);
 

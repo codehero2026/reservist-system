@@ -403,7 +403,7 @@ settingsRoutes.post("/reset-database", requireRole(...ADMIN_ONLY), async (c) => 
       prisma.reservist.deleteMany(),
     ]);
     await createAuditLog({
-      userId: user.userId, action: "SYSTEM",
+      userId: user.userId, action: "DELETE",
       tableName: "system", notes: "Database reset — all records deleted, users and settings retained",
     });
     return c.json({ message: "Database reset successfully. All records deleted, users and settings retained." });
