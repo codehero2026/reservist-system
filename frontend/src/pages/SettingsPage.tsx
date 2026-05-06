@@ -419,6 +419,9 @@ function BackupTab({ role }: { role: string }) {
       toast("Database reset successfully. All records deleted, users and settings retained.", "success");
       setResetConfirm(false);
       qc.invalidateQueries({ queryKey: ["backups"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-activity"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-announcements"] });
     } catch {
       toast("Reset failed", "error");
     } finally {
