@@ -148,29 +148,33 @@ importRoutes.post("/preview", async (c) => {
     _rowIndex: index + 2,
   }));
 
-  const results = await Promise.all(
-    mappedRows.map(async (row, i) => {
-      const errors = validateRow(row);
-      let isDuplicateInDb = false;
-      if (row.afpsn) {
-        const count = await prisma.reservist.count({
-          where: { afpsn: String(row.afpsn), isDeleted: false },
-        });
-        isDuplicateInDb = count > 0;
-      }
-      const isDuplicateInFile =
-        mappedRows.filter((r, j) => j !== i && r.afpsn === row.afpsn && row.afpsn).length > 0;
-
-      return {
-        rowIndex: row._rowIndex,
-        data: row,
-        errors,
-        isDuplicateInDb,
-        isDuplicateInFile,
-        status: errors.length > 0 ? "error" : isDuplicateInDb || isDuplicateInFile ? "warning" : "ok",
-      };
-    })
+  // Single batch query for all AFPSNs instead of one query per row
+  const allAfpsns = mappedRows.map(r => String(r.afpsn ?? "")).filter(Boolean);
+  const existingInDb = new Set(
+    (await prisma.reservist.findMany({
+      where: { afpsn: { in: allAfpsns }, isDeleted: false },
+      select: { afpsn: true },
+    })).map(r => r.afpsn)
   );
+
+  const afpsnCountInFile = allAfpsns.reduce<Record<string, number>>((acc, a) => {
+    acc[a] = (acc[a] || 0) + 1; return acc;
+  }, {});
+
+  const results = mappedRows.map((row) => {
+    const errors = validateRow(row);
+    const afpsn = String(row.afpsn ?? "");
+    const isDuplicateInDb = afpsn ? existingInDb.has(afpsn) : false;
+    const isDuplicateInFile = afpsn ? (afpsnCountInFile[afpsn] ?? 0) > 1 : false;
+    return {
+      rowIndex: row._rowIndex,
+      data: row,
+      errors,
+      isDuplicateInDb,
+      isDuplicateInFile,
+      status: errors.length > 0 ? "error" : isDuplicateInDb || isDuplicateInFile ? "warning" : "ok",
+    };
+  });
 
   return c.json({
     rows: results,
