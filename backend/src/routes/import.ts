@@ -145,12 +145,23 @@ importRoutes.post("/preview", async (c) => {
     const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
     sheetNames = workbook.SheetNames;
 
-    // Read ALL sheets and combine rows, skipping empty sheets
+    // Read ALL sheets, skip ones with no recognizable import columns
     rawRows = [];
     for (const name of sheetNames) {
       const sheet = workbook.Sheets[name];
       const sheetRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
-      if (sheetRows.length === 0) continue; // skip empty sheets
+      if (sheetRows.length === 0) continue;
+
+      // Skip sheets that have no columns mappable to known import fields
+      const firstRowKeys = Object.keys(sheetRows[0] || {});
+      const hasMappableColumn = firstRowKeys.some(
+        k => k && (COLUMN_MAP[k] || COLUMN_MAP[k.trim()] || COLUMN_MAP[k.trim().toUpperCase()])
+      );
+      if (!hasMappableColumn) {
+        console.log(`[Import] Skipping sheet "${name}" — no recognizable columns`);
+        continue;
+      }
+
       for (const row of sheetRows) {
         rawRows.push({ ...row, SourceSheet: row["SourceSheet"] ?? name });
       }
