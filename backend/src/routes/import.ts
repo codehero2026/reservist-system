@@ -145,11 +145,12 @@ importRoutes.post("/preview", async (c) => {
     const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
     sheetNames = workbook.SheetNames;
 
-    // Read ALL sheets and combine rows, tagging each row with its source sheet
+    // Read ALL sheets and combine rows, skipping empty sheets
     rawRows = [];
     for (const name of sheetNames) {
       const sheet = workbook.Sheets[name];
       const sheetRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
+      if (sheetRows.length === 0) continue; // skip empty sheets
       for (const row of sheetRows) {
         rawRows.push({ ...row, SourceSheet: row["SourceSheet"] ?? name });
       }
