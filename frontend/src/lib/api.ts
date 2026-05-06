@@ -166,6 +166,7 @@ export const settingsApi = {
   downloadBackup:   (filename: string)                  => api.get(`/settings/backups/${filename}`),
   restoreFromServer: (filename: string)                  => api.post(`/settings/backups/${filename}/restore`),
   deleteBackup:     (filename: string)                  => api.delete(`/settings/backups/${filename}`),
+  resetDatabase:    ()                                  => api.post("/settings/reset-database"),
 };
 
 // ─── Notifications ───────────────────────────────────

@@ -391,6 +391,27 @@ settingsRoutes.post("/restore", requireRole(...ADMIN_ONLY), async (c) => {
   }
 });
 
+// POST /api/settings/reset-database — wipe all data except users & settings (ADMIN only)
+settingsRoutes.post("/reset-database", requireRole(...ADMIN_ONLY), async (c) => {
+  const user = (c as any).get("user") as { userId: string };
+  try {
+    await prisma.$transaction([
+      prisma.auditLog.deleteMany(),
+      prisma.notification.deleteMany(),
+      prisma.dedupGroup.deleteMany(),
+      prisma.importBatch.deleteMany(),
+      prisma.reservist.deleteMany(),
+    ]);
+    await createAuditLog({
+      userId: user.userId, action: "SYSTEM",
+      tableName: "system", notes: "Database reset — all records deleted, users and settings retained",
+    });
+    return c.json({ message: "Database reset successfully. All records deleted, users and settings retained." });
+  } catch (e) {
+    return c.json({ error: "Reset failed: " + String(e) }, 500);
+  }
+});
+
 function inferCategory(key: string): string {
   if (["site_name","sub_name","logo","primary_color","hero_bg"].includes(key)) return "branding";
   if (key.startsWith("developer_") || key.startsWith("dev1_") || key.startsWith("dev2_") || key.startsWith("adviser_")) return "developer";

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Settings, Globe, Database, Code2, Upload,
   Save, Download, AlertTriangle, CheckCircle2,
-  Eye, EyeOff, Shield, RefreshCw, User, Phone, X,
+  Eye, EyeOff, Shield, RefreshCw, User, Phone, X, Trash2,
   Activity, Server, HardDrive, Users, Clock, Lock,
 } from "lucide-react";
 import { settingsApi, systemApi } from "../lib/api";
@@ -360,6 +360,8 @@ function BackupTab({ role }: { role: string }) {
   const [loading, setActionLoading] = useState<string | null>(null);
   const [restoreConfirm, setRestoreConfirm] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Fetch backups from server
   const { data: backups, isLoading, refetch } = useQuery<{ data: ServerBackup[] }>({
@@ -407,6 +409,20 @@ function BackupTab({ role }: { role: string }) {
       toast("Restore failed", "error");
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function resetDatabase() {
+    setResetting(true);
+    try {
+      await settingsApi.resetDatabase();
+      toast("Database reset successfully. All records deleted, users and settings retained.", "success");
+      setResetConfirm(false);
+      qc.invalidateQueries({ queryKey: ["backups"] });
+    } catch {
+      toast("Reset failed", "error");
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -526,6 +542,33 @@ function BackupTab({ role }: { role: string }) {
           </div>
         )}
       </SectionCard>
+
+      {/* ── Danger Zone: Reset Database ────────────────────── */}
+      {canRstr && (
+        <SectionCard title="Danger Zone" subtitle="Irreversible operations — use with caution">
+          <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-[rgb(var(--red)/0.3)] bg-[rgb(var(--red)/0.05)]">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[rgb(var(--red))]">Reset Database</p>
+              <p className="text-2xs text-[rgb(var(--ink-3))] mt-0.5">Permanently deletes all personnel records, import batches, dedup groups, audit logs, and notifications. Users and system settings are kept.</p>
+            </div>
+            <Button size="sm" variant="ghost" className="shrink-0 text-[rgb(var(--red))] border border-[rgb(var(--red)/0.4)] hover:bg-[rgb(var(--red)/0.1)]" onClick={() => setResetConfirm(true)}>
+              <Trash2 size={13} /> Reset Database
+            </Button>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Confirm Reset */}
+      <ConfirmDialog
+        open={resetConfirm}
+        title="Reset Entire Database?"
+        description="This will permanently delete ALL personnel records, import batches, dedup groups, audit logs, and notifications. Users and system settings will be kept. This action cannot be undone."
+        confirmLabel="Yes, Reset Database"
+        onConfirm={resetDatabase}
+        onCancel={() => setResetConfirm(false)}
+        loading={resetting}
+        destructive
+      />
 
       {/* Confirm Restore */}
       <ConfirmDialog
