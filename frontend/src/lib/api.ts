@@ -65,7 +65,7 @@ export const importApi = {
     const form = new FormData();
     form.append("file", file);
     return api.post("/import/preview", form, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { "Content-Type": undefined },
     });
   },
   commit: (rows: unknown[], filename: string) =>
