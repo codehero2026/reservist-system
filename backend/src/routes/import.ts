@@ -270,6 +270,26 @@ importRoutes.post("/commit", async (c) => {
   const errorRows = rows.length - successRows;
   const errorLog: { row: number; error: string }[] = [];
 
+  // Create dedup groups for newly imported duplicates (one query per unique duplicate AFPSN)
+  const duplicateAfpsns = [...new Set(toCreate.filter(r => r.isDuplicate).map(r => r.afpsn))];
+  for (const afpsn of duplicateAfpsns) {
+    const existingGroup = await prisma.dedupGroup.findFirst({ where: { afpsn, status: "PENDING" } });
+    const newRecords = await prisma.reservist.findMany({
+      where: { afpsn, isDeleted: false },
+      select: { id: true },
+    });
+    if (!existingGroup) {
+      await prisma.dedupGroup.create({
+        data: { afpsn, members: { connect: newRecords.map(r => ({ id: r.id })) } },
+      });
+    } else {
+      await prisma.dedupGroup.update({
+        where: { id: existingGroup.id },
+        data: { members: { connect: newRecords.map(r => ({ id: r.id })) } },
+      });
+    }
+  }
+
   await prisma.importBatch.update({
     where: { id: batch.id },
     data: { status: "COMPLETED", successRows, errorRows, dupRows, errorLog: errorLog as object[], completedAt: new Date() },
