@@ -69,7 +69,7 @@ export const importApi = {
     });
   },
   commit: (rows: unknown[], filename: string) =>
-    api.post("/import/commit", { rows, filename }),
+    api.post("/import/commit", { rows, filename }, { timeout: 120000 }),
   batches: (params?: Record<string, number>) =>
     api.get("/import/batches", { params }),
 };

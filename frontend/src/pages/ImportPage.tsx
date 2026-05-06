@@ -63,7 +63,11 @@ export function ImportPage() {
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast(`Import complete — ${res.data.successRows} records added`, "success");
     },
-    onError: () => toast("Import failed", "error"),
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast(msg || "Import failed — please try again", "error");
+      console.error("[Import commit error]", e);
+    },
   });
 
   const onDrop = useCallback((accepted: File[]) => {
