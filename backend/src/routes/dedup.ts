@@ -27,7 +27,6 @@ dedupRoutes.get("/", async (c) => {
           where: { isDeleted: false },
           select: { id: true, afpsn: true, rankCode: true, lastName: true, firstName: true, company: true, reservistStatus: true },
         },
-        _count: { select: { members: true } },
       },
     }),
   ]);

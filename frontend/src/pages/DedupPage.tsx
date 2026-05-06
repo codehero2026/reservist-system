@@ -22,10 +22,11 @@ export function DedupPage() {
   const [status, setStatus] = useState("PENDING");
   const [showResolveAll, setShowResolveAll] = useState(false);
 
-  const { data: stats } = useQuery({ queryKey:["dedup-stats"], queryFn: async()=>(await dedupApi.stats()).data, refetchInterval:30_000 });
+  const { data: stats } = useQuery({ queryKey:["dedup-stats"], queryFn: async()=>(await dedupApi.stats()).data, staleTime: 30_000, refetchInterval:60_000 });
   const { data, isLoading } = useQuery<{ data: DedupGroup[]; meta: any }>({
     queryKey: ["dedup", page, status],
     queryFn: async () => (await dedupApi.list({ page, limit: 25, status })).data,
+    staleTime: 30_000,
     placeholderData: p => p,
   });
 
